@@ -1,0 +1,18 @@
+{
+  "test_url": "https://example.com/health204",
+  "expected_status": 204,
+  "retries": 3,
+  "timeout_seconds": 10,
+  "retry_delay_seconds": 2,
+  "interval_minutes": 5,
+  "targets": [
+    {
+      "proxy": "socks5://192.168.10.1:10808",
+      "push_url": "https://kuma/api/push/AAA"
+    },
+    {
+      "proxy": "http://10.0.0.2:8080",
+      "push_url": "https://kuma/api/push/BBB"
+    }
+  ]
+}
