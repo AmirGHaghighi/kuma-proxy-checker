@@ -14,6 +14,7 @@ import httpx
 # Models
 # -------------------------
 
+
 @dataclass
 class ProxyTarget:
     proxy: str
@@ -89,11 +90,13 @@ def load_config(path: str) -> AppConfig:
         remark = item.get("remark")
         if remark is not None and str(remark).strip() == "":
             remark = None
-        targets.append(ProxyTarget(
-            proxy=item["proxy"],
-            push_url=item["push_url"],
-            remark=remark,
-        ))
+        targets.append(
+            ProxyTarget(
+                proxy=item["proxy"],
+                push_url=item["push_url"],
+                remark=remark,
+            )
+        )
 
     if not targets:
         raise ValueError("No targets defined")
@@ -113,6 +116,7 @@ def load_config(path: str) -> AppConfig:
 # Proxy Tester
 # -------------------------
 
+
 class ProxyTester:
     def __init__(self, cfg: AppConfig):
         self.cfg = cfg
@@ -129,29 +133,46 @@ class ProxyTester:
                 elapsed_ms = int((time.perf_counter() - start) * 1000)
                 if r.status_code == self.cfg.expected_status:
                     return True, elapsed_ms, None
-                return False, None, None
-
+                return False, None, f"Unexpected status code: {r.status_code}"
         except Exception as e:
+            error_msg = str(e)
+            error_class = e.__class__.__name__
             logger.debug("Proxy error %s → %s", proxy, e)
-            return False, None, str(e)
+            return False, None, f" {error_class}: {error_msg}"
 
-    async def test_with_retries(self, proxy: str, name: str) -> Tuple[bool, Optional[int], Optional[str]]:
+    async def test_with_retries(
+        self, proxy: str, name: str
+    ) -> Tuple[bool, Optional[int], Optional[str]]:
+        last_err_msg = None
         for attempt in range(1, self.cfg.retries + 1):
+            logger.info(
+                "Testing proxy : %s (attempt %d/%d)",
+                proxy,
+                attempt,
+                self.cfg.retries,
+            )
             ok, ping, err = await self.test_once(proxy)
+
+            if ok:
+                # Log as: OK : Remark : message (include proxy and ping for context)
+                logger.info(
+                    "OK : %s → Proxy OK %s (attempt %d) ping=%sms",
+                    name,
+                    proxy,
+                    attempt,
+                    ping,
+                )
+
+                return True, ping, "OK"
 
             if err is not None:
                 # Log as: ERROR : Remark : message
                 logger.error("ERROR : %s → %s", name, err)
-                return False, None, str(err)
-
-            if ok:
-                # Log as: OK : Remark : message (include proxy and ping for context)
-                logger.info("OK : %s → Proxy OK %s (attempt %d) ping=%sms", name, proxy, attempt, ping)
-                return True, ping, "OK"
+                last_err_msg = err
 
             # Intermediate failure
             logger.warning(
-                "FAILED : %s : Proxy failed %s (%d/%d)",
+                "FAILED : %s : Proxy failed '%s' (%d/%d)",
                 name,
                 proxy,
                 attempt,
@@ -162,6 +183,8 @@ class ProxyTester:
                 await asyncio.sleep(self.cfg.retry_delay_seconds)
 
         logger.error("FAILED : %s : Proxy failed after retries %s", name, proxy)
+        if last_err_msg is not None:
+            return False, None, last_err_msg
         return False, None, "FAILED"
 
 
@@ -169,8 +192,15 @@ class ProxyTester:
 # Notifier
 # -------------------------
 
+
 class UptimeKumaNotifier:
-    async def send(self, push_url: str, status: str, message: str, ping: Optional[int] = None):
+    async def send(
+        self,
+        push_url: str,
+        status: str,
+        message: str,
+        ping: Optional[int] = None,
+    ):
         params = {
             "status": status,
             "msg": message,
@@ -191,6 +221,7 @@ class UptimeKumaNotifier:
 # App
 # -------------------------
 
+
 class ProxyMonitorApp:
     def __init__(self, cfg: AppConfig, run_once: bool):
         self.cfg = cfg
@@ -199,9 +230,15 @@ class ProxyMonitorApp:
         self.notifier = UptimeKumaNotifier()
 
     async def check_target(self, target: ProxyTarget):
-        identifier = target.remark if (target.remark and str(target.remark).strip()) else target.proxy
+        identifier = (
+            target.remark
+            if (target.remark and str(target.remark).strip())
+            else target.proxy
+        )
 
-        ok, ping, message = await self.tester.test_with_retries(target.proxy, identifier)
+        ok, ping, message = await self.tester.test_with_retries(
+            target.proxy, identifier
+        )
 
         if ok:
             # Include ping in the message like: "OK : Remark : OK (950 ms)"
@@ -216,12 +253,12 @@ class ProxyMonitorApp:
 
         status = "up" if ok else "down"
 
-        await self.notifier.send(target.push_url, status, final_message, ping if ok else None)
+        await self.notifier.send(
+            target.push_url, status, final_message, ping if ok else None
+        )
 
     async def run_cycle(self):
-        await asyncio.gather(
-            *(self.check_target(t) for t in self.cfg.targets)
-        )
+        await asyncio.gather(*(self.check_target(t) for t in self.cfg.targets))
 
     async def run(self):
         while True:
@@ -239,6 +276,7 @@ class ProxyMonitorApp:
 # -------------------------
 # CLI
 # -------------------------
+
 
 def build_arg_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
@@ -265,6 +303,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
 # -------------------------
 # Entry
 # -------------------------
+
 
 def main():
     parser = build_arg_parser()
