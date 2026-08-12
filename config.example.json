@@ -1,0 +1,20 @@
+{
+  "test_url": "http://httpbin.org/get",
+  "expected_status": 200,
+  "retries": 3,
+  "timeout_seconds": 10.0,
+  "retry_delay_seconds": 1.0,
+  "interval_minutes": 5,
+  "targets": [
+    {
+      "proxy": "http://user:pass@proxy1.example.com:8080",
+      "push_url": "https://kuma.example.com/api/push/abc123",
+      "remark": "datacenter-1"
+    },
+    {
+      "proxy": "socks5://proxy2.example.com:1080",
+      "push_url": "https://kuma.example.com/api/push/def456",
+      "remark": "home-vpn"
+    }
+  ]
+}
