@@ -40,3 +40,18 @@ indent-style = "space"
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
+
+[tool.nuitka]
+entry-point = "src/kuma_proxy_checker/cli.py"
+onefile = true
+standalone = true
+output-filename = "kuma-proxy-checker"
+include-packages = [
+    "pydantic", "pydantic_core", "httpx", "httpcore",
+    "anyio", "sniffio", "certifi", "idna", "typing_extensions"
+]
+include-data-files = { "config.example.json" = "config.example.json" }
+lto = "yes"
+strip = "yes"
+jobs = 4
+windows-console-mode = "attach"

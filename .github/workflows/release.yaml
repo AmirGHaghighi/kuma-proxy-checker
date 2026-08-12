@@ -1,0 +1,86 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: kuma-proxy-checker
+          - os: windows-latest
+            artifact: kuma-proxy-checker.exe
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/Nuitka
+          key: ${{ runner.os }}-python-${{ hashFiles('pyproject.toml') }}
+
+      - name: Install Nuitka
+        run: pip install nuitka
+
+      - name: Install project
+        run: pip install -e .
+
+      - name: Extract version
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Update pyproject.toml version
+        run: |
+          sed -i "s/version = \".*\"/version = \"${{ steps.version.outputs.VERSION }}\"/" pyproject.toml
+
+      - name: Build with Nuitka
+        run: |
+          python -m nuitka \
+            --onefile --standalone \
+            --include-package=pydantic --include-package=httpx \
+            --include-package=httpcore --include-package=anyio \
+            --include-package=sniffio --include-package=certifi \
+            --include-package=idna --include-package=pydantic_core \
+            --enable-plugin=pydantic --enable-plugin=httpx \
+            --include-data-file=config.example.json=config.example.json \
+            --lto=yes --strip=yes --jobs=4 \
+            --output-filename=${{ matrix.artifact }} \
+            src/kuma_proxy_checker/cli.py
+
+      - name: Verify binary
+        run: |
+          ./${{ matrix.artifact }} --version
+          ./${{ matrix.artifact }} --help
+
+      - name: Generate SHA256
+        run: |
+          sha256sum ${{ matrix.artifact }} > ${{ matrix.artifact }}.sha256
+          cat ${{ matrix.artifact }}.sha256
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          files: |
+            kuma-proxy-checker
+            kuma-proxy-checker.exe
+            kuma-proxy-checker.sha256
+            kuma-proxy-checker.exe.sha256
+          generate_release_notes: false
+          body: _
