@@ -47,11 +47,11 @@ onefile = true
 standalone = true
 output-filename = "kuma-proxy-checker"
 include-packages = [
-    "pydantic", "pydantic_core", "httpx", "httpcore",
-    "anyio", "sniffio", "certifi", "idna", "typing_extensions"
+    "pydantic", "pydantic_core", "httpx", "httpcore", "h11",
+    "anyio", "certifi", "idna", "typing_extensions",
+    "annotated-types", "typing-inspection"
 ]
 include-data-files = { "config.example.json" = "config.example.json" }
-lto = "yes"
-strip = "yes"
+lto = "no"
 jobs = 4
 windows-console-mode = "attach"

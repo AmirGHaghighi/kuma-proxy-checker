@@ -35,6 +35,12 @@ jobs:
             ~/.cache/Nuitka
           key: ${{ runner.os }}-python-${{ hashFiles('pyproject.toml') }}
 
+      - name: Install mingw64 (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          choco install mingw --version=15.2.0 --no-progress -y
+          echo "C:\Program Files\mingw64\bin" >> $GITHUB_PATH
+
       - name: Install Nuitka
         run: pip install nuitka
 
@@ -54,13 +60,15 @@ jobs:
           python -m nuitka \
             --onefile --standalone \
             --include-package=pydantic --include-package=httpx \
-            --include-package=httpcore --include-package=anyio \
-            --include-package=sniffio --include-package=certifi \
+            --include-package=httpcore --include-package=h11 \
+            --include-package=anyio \
+            --include-package=certifi \
             --include-package=idna --include-package=pydantic_core \
-            --enable-plugin=pydantic --enable-plugin=httpx \
+            --include-package=annotated-types --include-package=typing-inspection \
             --include-data-file=config.example.json=config.example.json \
-            --lto=yes --strip=yes --jobs=4 \
+            --lto=no --jobs=4 \
             --output-filename=${{ matrix.artifact }} \
+            --assume-yes-for-downloads \
             src/kuma_proxy_checker/cli.py
 
       - name: Verify binary
