@@ -1,156 +1,183 @@
-# kuma-proxy-checker ✅
+# kuma-proxy-checker
 
-**Proxy health checker that tests proxies and pushes per-proxy status to Uptime Kuma-style push endpoints.**
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/)
+[![Release](https://img.shields.io/github/v/release/AmirGHaghighi/kuma-proxy-checker)](https://github.com/AmirGHaghighi/kuma-proxy-checker/releases)
 
----
+Async proxy health checker that tests a list of proxies with real HTTP requests and reports
+per-proxy **up/down** status to [Uptime Kuma](https://github.com/louislam/uptime-kuma)-style
+push URLs.
 
-## 🔧 Features
+## Features
 
-- Test a list of proxies by making HTTP requests through each proxy
-- Retry failed attempts with configurable retries and timeouts
-- Send status updates (up/down) to Uptime Kuma-style push URLs
-- Run continuously on an interval or run a single check cycle with `--once`
+- Tests each proxy by making an HTTP request through it against a configurable `test_url`
+- Validates the response against an expected HTTP status code
+- Configurable per-attempt timeout, retry count, and retry backoff delay
+- Pushes `up`/`down` status to Uptime Kuma push endpoints (compatible with the `push` type monitor)
+- Runs continuously on an interval, or as a single check cycle with `--once`
+- Supports `http`, `https`, `socks4`, `socks5`, and `socks5h` proxies
+- Async (`asyncio` + `httpx`): all targets are checked concurrently
+- Clean exits on `SIGINT`/`SIGTERM`
+- Ships as a single self-contained executable via Nuitka builds
 
----
+## Requirements
 
-## ⚙️ Requirements
+- Python 3.11 or newer
+- For the prebuilt binaries: nothing — they are self-contained
 
-- **Python 3.8+**
-- Dependencies in `requirements.txt` (install with pip)
+## Installation
 
----
-
-## 🚀 Installation
-
-1. Clone the repository:
+### From source
 
 ```bash
 git clone https://github.com/AmirGHaghighi/kuma-proxy-checker.git
 cd kuma-proxy-checker
-```
 
-2. Create and activate a virtual environment (recommended):
-
-- On macOS / Linux:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-- On Windows (PowerShell):
-
-```powershell
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+# Unix: source .venv/bin/activate   |   Windows: .venv\Scripts\Activate.ps1
+pip install .
 ```
 
-3. Install dependencies:
+This installs the `kuma-proxy-checker` command. It can also be run as a module:
 
 ```bash
-pip install -r requirements.txt
+python -m kuma_proxy_checker -c config.json
 ```
 
----
+### Development install
 
-## 🧩 Configuration
+```bash
+pip install -e ".[dev]"
+```
 
-Copy `config-example.json` to `config.json` and edit it to suit your needs.
+### Prebuilt binaries
 
-A working example (see `config-example.json`):
+Self-contained executables for Linux and Windows are published on the
+[Releases page](https://github.com/AmirGHaghighi/kuma-proxy-checker/releases).
+No Python install is required.
+
+## Quick start
+
+1. Copy the example config and edit it:
+
+```bash
+cp config.example.json config.json
+```
+
+2. Point the `test_url` at a reliable endpoint that returns a predictable status code
+   (e.g. `https://www.gstatic.com/generate_204` returning `204`).
+
+3. For each target, set the proxy URL and the Uptime Kuma push URL
+   (from a **Push** type monitor in Uptime Kuma: `https://your-kuma/api/push/<token>`).
+
+4. Run it on a 5-minute loop:
+
+```bash
+kuma-proxy-checker -c config.json
+```
+
+Or once:
+
+```bash
+kuma-proxy-checker -c config.json --once
+```
+
+## CLI
+
+| Flag                    | Description                                        |
+| ----------------------- | -------------------------------------------------- |
+| `-c, --config`          | Path to the config JSON file (required)            |
+| `--once`                | Run a single check cycle, then exit                |
+| `-v, --verbose`         | Enable debug logging                               |
+| `--version`             | Print the version and exit                         |
+
+## Configuration
+
+All fields except `remark` are required unless a default is noted.
+
+| Field                   | Type   | Default | Description                                          |
+| ----------------------- | ------ | ------- | ---------------------------------------------------- |
+| `test_url`              | string | —       | URL requested through each proxy                     |
+| `expected_status`       | int    | —       | HTTP status code that counts as healthy (100-599)    |
+| `retries`               | int    | `3`     | Attempts per proxy before reporting failure (>=1)    |
+| `timeout_seconds`       | float  | `10.0`  | Per-request timeout                              |
+| `retry_delay_seconds`   | float  | `1.0`   | Sleep between retry attempts (>=0)                   |
+| `interval_minutes`      | int    | `5`     | Minutes between cycles (`0` disables looping)      |
+| `targets`               | array  | —       | At least one target object (see below)               |
+
+Each target:
+
+| Field      | Type    | Description                                        |
+| ---------- | ------- | -------------------------------------------------- |
+| `proxy`    | string  | Proxy URL, e.g. `socks5://user:pass@host:1080`    |
+| `push_url` | string  | Uptime Kuma push URL to report status to           |
+| `remark`   | string  | Optional human-readable identifier for logs/msgs   |
+
+Allowed proxy schemes: `http`, `https`, `socks4`, `socks5`, `socks5h`.
+Unsupported schemes fail config validation at startup.
 
 ```json
 {
-  "test_url": "https://example.com/health204",
+  "test_url": "https://www.gstatic.com/generate_204",
   "expected_status": 204,
   "retries": 3,
-  "timeout_seconds": 10,
-  "retry_delay_seconds": 2,
+  "timeout_seconds": 10.0,
+  "retry_delay_seconds": 2.0,
   "interval_minutes": 5,
   "targets": [
     {
       "proxy": "socks5://192.168.10.1:10808",
-      "push_url": "https://kuma/api/push/AAA"
+      "push_url": "https://kuma.example.com/api/push/abc123",
+      "remark": "datacenter-1"
     }
   ]
 }
 ```
 
-Required configuration fields:
+## How it works
 
-- `test_url` (string): URL to request through each proxy (health endpoint is recommended)
-- `expected_status` (int): HTTP status code expected for a successful check (e.g., 204)
-- `retries` (int): Number of attempts per check before reporting failure
-- `timeout_seconds` (float): Request timeout for each attempt
-- `retry_delay_seconds` (float): Delay between retry attempts (seconds)
-- `interval_minutes` (int): Minutes between automatic check cycles (<= 0 to disable looping)
-- `targets` (array): List of target objects, each with:
-  - `proxy` (string): Proxy URL (required)
-  - `push_url` (string): Uptime Kuma push URL to report status to (required)
-  - `remark` (string): Optional human remark/identifier
+1. Config is loaded and validated with Pydantic (schemes, ranges, target count).
+2. Every cycle, all targets are checked concurrently with `asyncio.gather`.
+3. For each target, the proxy is tested against `test_url`; a mismatch with
+   `expected_status` or any connection error counts as a failure and is retried
+   up to `retries` times with `retry_delay_seconds` between attempts.
+4. The result is pushed to the target's `push_url` via a GET with query params:
 
-Allowed proxy URL schemes: **http, https, socks4, socks5, socks5h**. The tool will validate the scheme and raise an error for unsupported ones.
+   - `status` — `up` or `down`
+   - `msg` — human-readable message, e.g. `OK : datacenter-1 : OK (120ms)`
+   - `ping` — measured latency in milliseconds (present when the proxy is up)
 
----
+5. The loop sleeps `interval_minutes` and repeats, unless `--once` was passed,
+   `interval_minutes` is `0`, or the process received a shutdown signal.
 
-## 🧭 CLI Usage
-
-Run the checker with the required config file:
+## Building from source (Nuitka)
 
 ```bash
-python main.py -c config.json
+pip install nuitka
+python -m nuitka \
+  --onefile --standalone \
+  --output-filename=kuma-proxy-checker \
+  src/kuma_proxy_checker/cli.py
 ```
 
-Run a single check cycle (do not loop):
+On Windows a C toolchain is required (MinGW64 recommended). The exact flags used for
+release builds are defined in `.github/workflows/release.yaml`, and binaries are
+published automatically when a `v*` tag is pushed.
+
+## Development
 
 ```bash
-python main.py -c config.json --once
+pip install -e ".[dev]"
+
+pytest        # run tests
+ruff check .  # lint
 ```
 
-Arguments:
+## Contributing
 
-- `-c, --config` **(required)** Path to the config JSON file
-- `--once` Run one check cycle and exit instead of looping on an interval
+Contributions are welcome. Please open an issue to discuss changes before opening a
+pull request, and keep the existing code style (linted with Ruff, tests green).
 
----
+## License
 
-## 📡 How notifications are sent
-
-- The app sends a GET request to each `push_url` with query parameters:
-  - `status` — `up` or `down`
-  - `msg` — human-readable message (e.g., `OK : <remark> : OK (950 ms)`)
-  - `ping` — latency in ms (if available)
-
-This is compatible with Uptime Kuma's push API endpoints.
-
----
-
-## 🧰 Logs & Troubleshooting
-
-- The app logs events to stdout (INFO level by default). Typical messages include `OK`, `FAILED`, and `ERROR` with proxy identifiers and context.
-- If a push fails, the app logs the failure but continues to check other targets.
-
-> Tip: Use a minimal `test_url` that reliably returns a predictable status code (e.g., `/generate_204`) to reduce false negatives.
-
----
-
-## 🏃 Running in production
-
-- On Linux, consider running with `systemd` or a process supervisor (supervisord, Docker, etc.)
-- On Windows, use Task Scheduler or a service wrapper (such as NSSM) to run the script on startup
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome — open issues and pull requests for bug fixes or features.
-
----
-
-## 📄 License
-
-This repository is licensed under the **GNU General Public License v3.0 (GPL-3.0)
-
----
-
-If you'd like I can add example systemd unit, Dockerfile, or CI workflow next. ✨
+[GPL-3.0](LICENSE) © AmirGHaghighi
