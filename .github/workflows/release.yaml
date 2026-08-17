@@ -5,35 +5,39 @@ on:
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   build:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
             artifact: kuma-proxy-checker
           - os: windows-latest
             artifact: kuma-proxy-checker.exe
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be131a38a7c9b4c5060e85a5307c6c745
         with:
           python-version: "3.11"
-
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/pip
-            ~/.cache/Nuitka
-          key: ${{ runner.os }}-python-${{ hashFiles('pyproject.toml') }}
+          cache: pip
+          cache-key: ${{ runner.os }}-python-${{ hashFiles('pyproject.toml') }}
+          cache-restore-keys: |
+            ${{ runner.os }}-python-
 
       - name: Install mingw64 (Windows)
         if: runner.os == 'Windows'
@@ -42,34 +46,42 @@ jobs:
           echo "C:\Program Files\mingw64\bin" >> $GITHUB_PATH
 
       - name: Install Nuitka
-        run: pip install nuitka
+        run: pip install --quiet nuitka
 
       - name: Install project
-        run: pip install -e .
+        run: pip install --quiet -e .
 
-      - name: Extract version
-        id: version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
-
-      - name: Update pyproject.toml version
+      - name: Build with Nuitka (flags from pyproject.toml)
+        shell: bash
         run: |
-          sed -i "s/version = \".*\"/version = \"${{ steps.version.outputs.VERSION }}\"/" pyproject.toml
+          python - <<'PY'
+import json
+import subprocess
+import sys
+import tomllib
 
-      - name: Build with Nuitka
-        run: |
-          python -m nuitka \
-            --onefile --standalone \
-            --include-package=pydantic --include-package=httpx \
-            --include-package=httpcore --include-package=h11 \
-            --include-package=anyio \
-            --include-package=certifi \
-            --include-package=idna --include-package=pydantic_core \
-            --include-package=annotated-types --include-package=typing-inspection \
-            --include-data-file=config.example.json=config.example.json \
-            --lto=no --jobs=4 \
-            --output-filename=${{ matrix.artifact }} \
-            --assume-yes-for-downloads \
-            src/kuma_proxy_checker/cli.py
+with open("pyproject.toml", "rb") as f:
+    cfg = tomllib.load(f)
+
+n = cfg["tool"]["nuitka"]
+pkgs = n["include-packages"]
+data_files = list(n["include-data-files"].items())[0]
+
+flags = [
+    "--onefile",
+    "--standalone",
+    *(f"--include-package={p}" for p in pkgs),
+    f"--include-data-file={data_files[0]}={data_files[1]}",
+    f"--lto={n['lto']}",
+    f"--jobs={n['jobs']}",
+    f"--output-filename=${{ matrix.artifact }}",
+    "--assume-yes-for-downloads",
+    n["entry-point"],
+]
+
+print("Running:", " ".join(["python", "-m", "nuitka", *flags]), flush=True)
+sys.exit(subprocess.run(["python", "-m", "nuitka", *flags]).returncode)
+PY
 
       - name: Verify binary
         run: |
@@ -82,7 +94,7 @@ jobs:
           cat ${{ matrix.artifact }}.sha256
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef2670da
         if: matrix.os == 'ubuntu-latest'
         with:
           files: |
@@ -90,5 +102,4 @@ jobs:
             kuma-proxy-checker.exe
             kuma-proxy-checker.sha256
             kuma-proxy-checker.exe.sha256
-          generate_release_notes: false
-          body: _
+          generate_release_notes: true

@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be131a38a7c9b4c5060e85a5307c6c745
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
+          cache-restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dev dependencies
+        run: |
+          pip install --quiet -e ".[dev]"
+
+      - name: Run Ruff (lint)
+        run: ruff check .
+
+      - name: Run pytest
+        run: pytest -q
