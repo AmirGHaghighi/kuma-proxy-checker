@@ -16,5 +16,23 @@
       "push_url": "https://kuma.example.com/api/push/def456",
       "remark": "home-vpn"
     }
-  ]
+  ],
+  "health_check": {
+    "enabled": true,
+    "host": "0.0.0.0",
+    "port": 8080,
+    "path": "/health",
+    "response_code": 200,
+    "response_json": {
+      "status": "ok",
+      "service": "proxy-monitor",
+      "version": "{version}",
+      "uptime_seconds": "{uptime_seconds}",
+      "checked_at": "{timestamp}",
+      "instance": "{hostname}:{pid}"
+    },
+    "ssl_enabled": false,
+    "ssl_certfile": null,
+    "ssl_keyfile": null
+  }
 }

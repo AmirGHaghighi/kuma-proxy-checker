@@ -1,6 +1,9 @@
+from pathlib import Path
+
 from pydantic import AnyUrl, BaseModel, Field, field_validator
 from pydantic_core import PydanticCustomError
 
+from .health import validate_template_vars
 from .models import ProxyScheme
 
 
@@ -22,6 +25,36 @@ class ProxyTarget(BaseModel):
         return v
 
 
+class HealthCheckConfig(BaseModel):
+    enabled: bool = False
+    host: str = "0.0.0.0"
+    port: int = Field(ge=0, le=65535, default=8080)
+    path: str = "/health"
+    response_code: int = Field(ge=100, le=599, default=200)
+    response_json: dict = Field(default_factory=lambda: {"status": "ok"})
+    ssl_enabled: bool = False
+    ssl_certfile: str | None = None
+    ssl_keyfile: str | None = None
+
+    @field_validator("response_json")
+    @classmethod
+    def validate_response_json_template(cls, v: dict) -> dict:
+        validate_template_vars(v)
+        return v
+
+    @field_validator("ssl_certfile", "ssl_keyfile")
+    @classmethod
+    def validate_ssl_files(cls, v: str | None, info) -> str | None:
+        if v and info.data.get("ssl_enabled"):
+            if not Path(v).is_file():
+                raise PydanticCustomError(
+                    "ssl_file_not_found",
+                    "SSL file not found: {path}",
+                    {"path": v},
+                )
+        return v
+
+
 class AppConfig(BaseModel):
     test_url: AnyUrl
     expected_status: int = Field(ge=100, le=599)
@@ -30,6 +63,7 @@ class AppConfig(BaseModel):
     retry_delay_seconds: float = Field(ge=0, default=1.0)
     interval_minutes: int = Field(ge=0, default=5)
     targets: list[ProxyTarget] = Field(min_length=1)
+    health_check: HealthCheckConfig = Field(default_factory=HealthCheckConfig)
 
     @classmethod
     def from_file(cls, path: str) -> "AppConfig":

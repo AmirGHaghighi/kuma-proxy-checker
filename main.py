@@ -2,13 +2,11 @@ import argparse
 import asyncio
 import json
 import logging
-from dataclasses import dataclass
-from typing import List, Optional, Tuple
-from urllib.parse import urlparse
 import time
+from dataclasses import dataclass
+from urllib.parse import urlparse
 
 import httpx
-
 
 # -------------------------
 # Models
@@ -19,7 +17,7 @@ import httpx
 class ProxyTarget:
     proxy: str
     push_url: str
-    remark: Optional[str] = None
+    remark: str | None = None
 
 
 @dataclass
@@ -30,7 +28,7 @@ class AppConfig:
     timeout_seconds: float
     retry_delay_seconds: float
     interval_minutes: int
-    targets: List[ProxyTarget]
+    targets: list[ProxyTarget]
 
 
 # -------------------------
@@ -64,7 +62,7 @@ def validate_proxy_url(proxy: str):
 
 
 def load_config(path: str) -> AppConfig:
-    with open(path, "r") as f:
+    with open(path) as f:
         raw = json.load(f)
 
     required = [
@@ -81,7 +79,7 @@ def load_config(path: str) -> AppConfig:
         if key not in raw:
             raise ValueError(f"Missing config field: {key}")
 
-    targets: List[ProxyTarget] = []
+    targets: list[ProxyTarget] = []
     for item in raw["targets"]:
         if "proxy" not in item or "push_url" not in item:
             raise ValueError("Each target must contain proxy and push_url")
@@ -121,7 +119,7 @@ class ProxyTester:
     def __init__(self, cfg: AppConfig):
         self.cfg = cfg
 
-    async def test_once(self, proxy: str) -> Tuple[bool, Optional[int], Optional[str]]:
+    async def test_once(self, proxy: str) -> tuple[bool, int | None, str | None]:
         try:
             start = time.perf_counter()
             async with httpx.AsyncClient(
@@ -142,7 +140,7 @@ class ProxyTester:
 
     async def test_with_retries(
         self, proxy: str, name: str
-    ) -> Tuple[bool, Optional[int], Optional[str]]:
+    ) -> tuple[bool, int | None, str | None]:
         last_err_msg = None
         for attempt in range(1, self.cfg.retries + 1):
             logger.info(
@@ -199,7 +197,7 @@ class UptimeKumaNotifier:
         push_url: str,
         status: str,
         message: str,
-        ping: Optional[int] = None,
+        ping: int | None = None,
     ):
         params = {
             "status": status,

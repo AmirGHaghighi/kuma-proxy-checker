@@ -3,6 +3,7 @@ import logging
 import signal
 
 from .config import AppConfig, ProxyTarget
+from .health import run_health_server
 from .logging_utils import fmt_log, get_identifier
 from .models import Status
 from .notifier import NotifierProtocol, UptimeKumaNotifier
@@ -28,6 +29,7 @@ class ProxyMonitorApp:
             retry_delay_seconds=cfg.retry_delay_seconds,
         )
         self._shutdown = asyncio.Event()
+        self._health_task: asyncio.Task | None = None
         self._setup_signals()
 
     def _setup_signals(self) -> None:
@@ -57,17 +59,29 @@ class ProxyMonitorApp:
         await asyncio.gather(*(self.check_target(t) for t in self.cfg.targets))
 
     async def run(self, run_once: bool = False) -> None:
-        while not self._shutdown.is_set():
-            logger.info("Starting check cycle")
-            await self.run_cycle()
+        if self.cfg.health_check.enabled:
+            self._health_task = asyncio.create_task(
+                run_health_server(self.cfg.health_check, self._shutdown)
+            )
+        try:
+            while not self._shutdown.is_set():
+                logger.info("Starting check cycle")
+                await self.run_cycle()
 
-            if run_once or self.cfg.interval_minutes <= 0:
-                break
+                if run_once or self.cfg.interval_minutes <= 0:
+                    break
 
-            sleep_s = self.cfg.interval_minutes * 60
-            logger.info("Sleeping %d minutes", self.cfg.interval_minutes)
-            try:
-                await asyncio.wait_for(self._shutdown.wait(), timeout=sleep_s)
-                break
-            except TimeoutError:
-                continue
+                sleep_s = self.cfg.interval_minutes * 60
+                logger.info("Sleeping %d minutes", self.cfg.interval_minutes)
+                try:
+                    await asyncio.wait_for(self._shutdown.wait(), timeout=sleep_s)
+                    break
+                except TimeoutError:
+                    continue
+        finally:
+            if self._health_task:
+                self._health_task.cancel()
+                try:
+                    await self._health_task
+                except asyncio.CancelledError:
+                    pass
