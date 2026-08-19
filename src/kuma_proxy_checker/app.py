@@ -57,7 +57,7 @@ class ProxyMonitorApp:
                 final_message = StatusFormatter.error(identifier, message)
 
         status = Status.UP if ok else Status.DOWN
-        await self.notifier.send(target.push_url, status, final_message, ping if ok else None)
+        await self.notifier.send(str(target.push_url), status, final_message, ping if ok else None)
 
     async def run_cycle(self) -> None:
         await asyncio.gather(*(self.check_target(t) for t in self.cfg.targets))

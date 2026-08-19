@@ -1,0 +1,9 @@
+services:
+  kuma-proxy-checker:
+    image: ghcr.io/amirghaghighi/kuma-proxy-checker:latest
+    container_name: kuma-proxy-checker
+    restart: unless-stopped
+    volumes:
+      - ./config.json:/etc/kuma-proxy-checker/config.json:ro
+    ports:
+      - "8080:8080"

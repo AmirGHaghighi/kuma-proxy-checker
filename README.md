@@ -46,6 +46,44 @@ Self-contained executables for Linux and Windows are available on the
 [Releases page](https://github.com/AmirGHaghighi/kuma-proxy-checker/releases).
 No Python install is required.
 
+### Docker
+
+Multi-arch images (`linux/amd64`, `linux/arm64`) are published to GitHub Container
+Registry on every release tag:
+
+```bash
+docker run -d --name kuma-proxy-checker \
+  --restart unless-stopped \
+  -v "$PWD/config.json:/etc/kuma-proxy-checker/config.json" \
+  ghcr.io/amirghaghighi/kuma-proxy-checker:latest
+```
+
+- The config must be mounted at `/etc/kuma-proxy-checker/config.json` (the container's
+  default `-c` path); `config.example.json` is available inside the image at
+  `/app/config.example.json`.
+- The container runs as an unprivileged user. The optional health server
+  (see `health_check` in the config) listens on port `8080` when enabled; use it for
+  Docker/orchestrator liveness probes (there is no baked-in `HEALTHCHECK`).
+
+Or with Docker Compose (a ready-made `compose.yaml` is in the repo):
+
+```bash
+docker compose up -d
+```
+
+This mounts `./config.json` into the container and publishes the health server port
+(`8080`) when enabled.
+
+**Host network mode** (Linux only; e.g. to reach proxies on `127.0.0.1:<port>`
+running on the host, and to expose the health server without port mapping):
+
+```bash
+docker compose -f compose.yaml -f compose.host.yaml up -d
+```
+
+The `compose.host.yaml` override uses `network_mode: host`, so the health server
+binds directly on the host interface/port from your config.
+
 ## Quick start
 
 1. Copy the example config and edit it:

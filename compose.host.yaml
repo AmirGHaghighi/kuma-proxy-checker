@@ -1,0 +1,4 @@
+services:
+  kuma-proxy-checker:
+    network_mode: host
+    ports: []

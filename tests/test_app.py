@@ -42,6 +42,9 @@ async def test_run_cycle_calls_all_targets(config, mock_tester, mock_notifier):
     await app.run_cycle()
     assert mock_tester.test_with_retries.call_count == 2
     assert mock_notifier.send.call_count == 2
+    sent_args = [c.args for c in mock_notifier.send.call_args_list]
+    assert all(isinstance(url, str) for url, *_ in sent_args)
+    assert sent_args[0][0] == "http://kuma/1"
 
 
 @pytest.mark.asyncio
