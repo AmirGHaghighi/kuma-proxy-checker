@@ -102,4 +102,5 @@ PY
             kuma-proxy-checker.exe
             kuma-proxy-checker.sha256
             kuma-proxy-checker.exe.sha256
+            config.example.json
           generate_release_notes: true

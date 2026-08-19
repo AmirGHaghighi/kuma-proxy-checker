@@ -27,32 +27,22 @@ push URLs.
 
 ## Installation
 
-### From source
+### Quick install (Linux)
 
 ```bash
-git clone https://github.com/AmirGHaghighi/kuma-proxy-checker.git
-cd kuma-proxy-checker
-
-python -m venv .venv
-# Unix: source .venv/bin/activate   |   Windows: .venv\Scripts\Activate.ps1
-pip install .
+bash <(curl -fsSL https://raw.githubusercontent.com/AmirGHaghighi/kuma-proxy-checker/main/install.sh)
 ```
 
-This installs the `kuma-proxy-checker` command. It can also be run as a module:
+This downloads the latest binary to `~/.local/bin` and sets up a starter `config.json`.
+You can pass a custom directory as an argument:
 
 ```bash
-python -m kuma_proxy_checker -c config.json
-```
-
-### Development install
-
-```bash
-pip install -e ".[dev]"
+bash <(curl -fsSL https://raw.githubusercontent.com/AmirGHaghighi/kuma-proxy-checker/main/install.sh) /opt/kuma-proxy-checker
 ```
 
 ### Prebuilt binaries
 
-Self-contained executables for Linux and Windows are published on the
+Self-contained executables for Linux and Windows are available on the
 [Releases page](https://github.com/AmirGHaghighi/kuma-proxy-checker/releases).
 No Python install is required.
 
@@ -167,8 +157,23 @@ published automatically when a `v*` tag is pushed.
 ## Development
 
 ```bash
-pip install -e ".[dev]"
+git clone https://github.com/AmirGHaghighi/kuma-proxy-checker.git
+cd kuma-proxy-checker
 
+python -m venv .venv
+# Unix: source .venv/bin/activate   |   Windows: .venv\Scripts\Activate.ps1
+pip install -e ".[dev]"
+```
+
+This installs the `kuma-proxy-checker` command in editable mode. It can also be run as a module:
+
+```bash
+python -m kuma_proxy_checker -c config.json
+```
+
+Run tests and lint:
+
+```bash
 pytest        # run tests
 ruff check .  # lint
 ```
