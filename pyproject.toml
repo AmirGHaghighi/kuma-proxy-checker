@@ -57,14 +57,15 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.nuitka]
-entry-point = "src/kuma_proxy_checker/cli.py"
+entry-point = "__main__.py"
 onefile = true
 standalone = true
 output-filename = "kuma-proxy-checker"
 include-packages = [
+    "kuma_proxy_checker",
     "pydantic", "pydantic_core", "httpx", "httpcore", "h11",
     "anyio", "certifi", "idna", "typing_extensions",
-    "annotated-types", "typing-inspection",
+    "annotated_types", "typing_inspection",
     "aiohttp", "multidict", "yarl", "attrs", "frozenlist", "aiosignal"
 ]
 include-data-files = { "config.example.json" = "config.example.json" }
