@@ -1,53 +1,17 @@
 import asyncio
 import logging
-import os
-import re
-import socket
 import ssl
-import time
-from collections.abc import Callable
-from importlib.metadata import version
 from typing import TYPE_CHECKING, Any
 
 from aiohttp import web
+
+from .constants import HEALTH_SHUTDOWN_TIMEOUT, MAX_BODY_SIZE
+from .templates import TEMPLATE_PATTERN, TEMPLATE_VARIABLES
 
 if TYPE_CHECKING:
     from .config import HealthCheckConfig
 
 logger = logging.getLogger("proxy-monitor.health")
-
-__version__ = version("kuma-proxy-checker")
-
-_APP_START_TIME = time.time()
-
-TEMPLATE_VARIABLES: dict[str, Callable[[], Any]] = {
-    "uptime_seconds": lambda: time.time() - _APP_START_TIME,
-    "timestamp": lambda: time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-    "version": lambda: __version__,
-    "hostname": lambda: socket.gethostname(),
-    "pid": lambda: os.getpid(),
-}
-
-ALLOWED_VAR_NAMES = frozenset(TEMPLATE_VARIABLES.keys())
-
-# Regex to match {variable} format (like Python f-strings but simpler)
-TEMPLATE_PATTERN = re.compile(r"\{([a-zA-Z_][a-zA-Z0-9_]*)\}")
-
-
-def validate_template_vars(obj: Any, path: str = "$") -> None:
-    if isinstance(obj, str):
-        used = {m.group(1) for m in TEMPLATE_PATTERN.finditer(obj)}
-        invalid = used - ALLOWED_VAR_NAMES
-        if invalid:
-            raise ValueError(
-                f"{path}: disallowed template variables: {invalid}. Allowed: {sorted(ALLOWED_VAR_NAMES)}"
-            )
-    elif isinstance(obj, dict):
-        for k, v in obj.items():
-            validate_template_vars(v, f"{path}.{k}")
-    elif isinstance(obj, list):
-        for i, v in enumerate(obj):
-            validate_template_vars(v, f"{path}[{i}]")
 
 
 def _render_recursive(obj: Any, context: dict) -> Any:
@@ -74,7 +38,7 @@ async def run_health_server(cfg: "HealthCheckConfig", shutdown: asyncio.Event) -
     async def remove_server_header(request, response):
         response.headers.pop("Server", None)
 
-    app = web.Application(client_max_size=1024)
+    app = web.Application(client_max_size=MAX_BODY_SIZE)
     app.router.add_get(cfg.path, handler)
     app.on_response_prepare.append(remove_server_header)
 
@@ -91,7 +55,7 @@ async def run_health_server(cfg: "HealthCheckConfig", shutdown: asyncio.Event) -
         cfg.host,
         cfg.port,
         ssl_context=ssl_context,
-        shutdown_timeout=2.0,
+        shutdown_timeout=HEALTH_SHUTDOWN_TIMEOUT,
     )
 
     await site.start()

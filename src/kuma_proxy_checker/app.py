@@ -4,10 +4,12 @@ import signal
 
 from .config import AppConfig, ProxyTarget
 from .health import run_health_server
-from .logging_utils import fmt_log, get_identifier
+from .logging_utils import get_identifier
 from .models import Status
 from .notifier import NotifierProtocol, UptimeKumaNotifier
+from .status_formatter import StatusFormatter
 from .tester import ProxyTester
+from .tester_config import TesterConfig
 
 logger = logging.getLogger("proxy-monitor.app")
 
@@ -20,13 +22,15 @@ class ProxyMonitorApp:
         tester: ProxyTester | None = None,
     ):
         self.cfg = cfg
-        self.notifier = notifier or UptimeKumaNotifier()
+        self.notifier = notifier or UptimeKumaNotifier(timeout=cfg.notifier_timeout_seconds)
         self.tester = tester or ProxyTester(
-            test_url=str(cfg.test_url),
-            expected_status=cfg.expected_status,
-            timeout_seconds=cfg.timeout_seconds,
-            retries=cfg.retries,
-            retry_delay_seconds=cfg.retry_delay_seconds,
+            TesterConfig(
+                test_url=str(cfg.test_url),
+                expected_status=cfg.expected_status,
+                timeout_seconds=cfg.timeout_seconds,
+                retries=cfg.retries,
+                retry_delay_seconds=cfg.retry_delay_seconds,
+            )
         )
         self._shutdown = asyncio.Event()
         self._health_task: asyncio.Task | None = None
@@ -45,12 +49,12 @@ class ProxyMonitorApp:
         ok, ping, message = await self.tester.test_with_retries(str(target.proxy), identifier)
 
         if ok:
-            final_message = fmt_log(Status.OK, identifier, "OK", ping)
+            final_message = StatusFormatter.ok(identifier, ping)
         else:
             if message == "FAILED":
-                final_message = fmt_log(Status.FAILED, identifier, "FAILED")
+                final_message = StatusFormatter.format(Status.FAILED, identifier, "FAILED")
             else:
-                final_message = fmt_log(Status.ERROR, identifier, message)
+                final_message = StatusFormatter.error(identifier, message)
 
         status = Status.UP if ok else Status.DOWN
         await self.notifier.send(target.push_url, status, final_message, ping if ok else None)

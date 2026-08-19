@@ -2,40 +2,28 @@ import asyncio
 import logging
 import time
 
-import httpx
-
-from .logging_utils import fmt_log
-from .models import Status
+from .http_client import create_http_client
+from .status_formatter import StatusFormatter
+from .tester_config import TesterConfig
 
 logger = logging.getLogger("proxy-monitor.tester")
 
 
 class ProxyTester:
-    def __init__(
-        self,
-        test_url: str,
-        expected_status: int,
-        timeout_seconds: float,
-        retries: int,
-        retry_delay_seconds: float,
-    ):
-        self.test_url = test_url
-        self.expected_status = expected_status
-        self.timeout_seconds = timeout_seconds
-        self.retries = retries
-        self.retry_delay_seconds = retry_delay_seconds
+    def __init__(self, config: TesterConfig):
+        self.config = config
 
     async def test_once(self, proxy: str) -> tuple[bool, int | None, str | None]:
         try:
             start = time.perf_counter()
-            async with httpx.AsyncClient(
+            async with create_http_client(
+                timeout=self.config.timeout_seconds,
                 proxy=proxy,
-                timeout=self.timeout_seconds,
                 follow_redirects=True,
             ) as client:
-                r = await client.get(self.test_url)
+                r = await client.get(self.config.test_url)
                 elapsed_ms = int((time.perf_counter() - start) * 1000)
-                if r.status_code == self.expected_status:
+                if r.status_code == self.config.expected_status:
                     return True, elapsed_ms, None
                 return False, None, f"Unexpected status code: {r.status_code}"
         except Exception as e:
@@ -46,26 +34,24 @@ class ProxyTester:
         self, proxy: str, identifier: str
     ) -> tuple[bool, int | None, str | None]:
         last_err_msg = None
-        for attempt in range(1, self.retries + 1):
-            logger.info("Testing proxy: %s (attempt %d/%d)", proxy, attempt, self.retries)
+        for attempt in range(1, self.config.retries + 1):
+            logger.info("Testing proxy: %s (attempt %d/%d)", proxy, attempt, self.config.retries)
             ok, ping, err = await self.test_once(proxy)
 
             if ok:
-                logger.info(fmt_log(Status.OK, identifier, "OK", ping))
+                logger.info(StatusFormatter.ok(identifier, ping))
                 return True, ping, "OK"
 
             if err:
-                logger.error(fmt_log(Status.ERROR, identifier, err))
+                logger.error(StatusFormatter.error(identifier, err))
                 last_err_msg = err
 
             logger.warning(
-                fmt_log(
-                    Status.FAILED, identifier, f"Proxy failed '{proxy}' ({attempt}/{self.retries})"
-                )
+                StatusFormatter.failed(identifier, proxy, attempt, self.config.retries)
             )
 
-            if attempt < self.retries:
-                await asyncio.sleep(self.retry_delay_seconds)
+            if attempt < self.config.retries:
+                await asyncio.sleep(self.config.retry_delay_seconds)
 
-        logger.error(fmt_log(Status.FAILED, identifier, f"Proxy failed after retries: {proxy}"))
+        logger.error(StatusFormatter.failed_after_retries(identifier, proxy))
         return False, None, last_err_msg or "FAILED"

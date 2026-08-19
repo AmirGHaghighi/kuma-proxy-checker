@@ -1,6 +1,7 @@
 import logging
 
 from .config import ProxyTarget
+from .constants import LOG_FORMAT
 from .models import Status
 
 
@@ -8,7 +9,7 @@ def setup_logging(verbose: bool = False) -> None:
     level = logging.DEBUG if verbose else logging.INFO
     logging.basicConfig(
         level=level,
-        format="%(asctime)s | %(levelname)s | %(message)s",
+        format=LOG_FORMAT,
     )
 
 

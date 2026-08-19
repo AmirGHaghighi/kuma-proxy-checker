@@ -3,17 +3,19 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from kuma_proxy_checker.tester import ProxyTester
+from kuma_proxy_checker.tester_config import TesterConfig
 
 
 @pytest.fixture
 def tester():
-    return ProxyTester(
+    config = TesterConfig(
         test_url="http://example.com",
         expected_status=200,
         timeout_seconds=5.0,
         retries=3,
         retry_delay_seconds=0.01,
     )
+    return ProxyTester(config)
 
 
 @pytest.mark.asyncio

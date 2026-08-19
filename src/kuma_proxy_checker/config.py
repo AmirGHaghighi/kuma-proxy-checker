@@ -1,10 +1,9 @@
-from pathlib import Path
 
 from pydantic import AnyUrl, BaseModel, Field, field_validator
 from pydantic_core import PydanticCustomError
 
-from .health import validate_template_vars
 from .models import ProxyScheme
+from .validators import validate_ssl_files, validate_template_vars
 
 
 class ProxyTarget(BaseModel):
@@ -45,14 +44,7 @@ class HealthCheckConfig(BaseModel):
     @field_validator("ssl_certfile", "ssl_keyfile")
     @classmethod
     def validate_ssl_files(cls, v: str | None, info) -> str | None:
-        if v and info.data.get("ssl_enabled"):
-            if not Path(v).is_file():
-                raise PydanticCustomError(
-                    "ssl_file_not_found",
-                    "SSL file not found: {path}",
-                    {"path": v},
-                )
-        return v
+        return validate_ssl_files(v, info.data.get("ssl_enabled", False))
 
 
 class AppConfig(BaseModel):
@@ -62,6 +54,7 @@ class AppConfig(BaseModel):
     timeout_seconds: float = Field(gt=0, default=10.0)
     retry_delay_seconds: float = Field(ge=0, default=1.0)
     interval_minutes: int = Field(ge=0, default=5)
+    notifier_timeout_seconds: float = Field(gt=0, default=10.0)
     targets: list[ProxyTarget] = Field(min_length=1)
     health_check: HealthCheckConfig = Field(default_factory=HealthCheckConfig)
 

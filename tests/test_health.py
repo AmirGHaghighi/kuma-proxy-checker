@@ -9,8 +9,8 @@ from kuma_proxy_checker.config import AppConfig, HealthCheckConfig, ProxyTarget
 from kuma_proxy_checker.health import (
     render_template,
     run_health_server,
-    validate_template_vars,
 )
+from kuma_proxy_checker.validators import validate_template_vars
 
 
 class TestTemplateValidation:
