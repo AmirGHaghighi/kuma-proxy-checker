@@ -250,13 +250,13 @@ class TestConfigIntegration:
         config_json = {
             "default_test_url": "http://example.com",
             "expected_status": 200,
-            "targets": [
+            "proxy_targets": [
                 {
                     "proxy": "http://proxy.example.com:8080",
                     "push_url": "https://kuma.example.com/push/abc123",
                 }
             ],
-            "health_check": {
+            "health_check_server": {
                 "enabled": True,
                 "host": "0.0.0.0",
                 "port": 8080,
@@ -267,21 +267,21 @@ class TestConfigIntegration:
             },
         }
         cfg = AppConfig.model_validate(config_json)
-        assert cfg.health_check.enabled is True
-        assert cfg.health_check.port == 8080
-        assert cfg.health_check.response_json == {"status": "ok"}
+        assert cfg.health_check_server.enabled is True
+        assert cfg.health_check_server.port == 8080
+        assert cfg.health_check_server.response_json == {"status": "ok"}
 
     def test_invalid_template_in_config_rejected(self):
         config_json = {
             "default_test_url": "http://example.com",
             "expected_status": 200,
-            "targets": [
+            "proxy_targets": [
                 {
                     "proxy": "http://proxy.example.com:8080",
                     "push_url": "https://kuma.example.com/push/abc123",
                 }
             ],
-            "health_check": {
+            "health_check_server": {
                 "response_json": {"secret": "{SECRET}"},
             },
         }
@@ -297,13 +297,13 @@ class TestConfigIntegration:
         config_json = {
             "default_test_url": "http://example.com",
             "expected_status": 200,
-            "targets": [
+            "proxy_targets": [
                 {
                     "proxy": "http://proxy.example.com:8080",
                     "push_url": "https://kuma.example.com/push/abc123",
                 }
             ],
-            "health_check": {
+            "health_check_server": {
                 "enabled": True,
                 "ssl_enabled": True,
                 "ssl_certfile": str(cert_file),
@@ -311,19 +311,19 @@ class TestConfigIntegration:
             },
         }
         cfg = AppConfig.model_validate(config_json)
-        assert cfg.health_check.ssl_certfile == str(cert_file)
+        assert cfg.health_check_server.ssl_certfile == str(cert_file)
 
     def test_missing_ssl_file_rejected(self):
         config_json = {
             "default_test_url": "http://example.com",
             "expected_status": 200,
-            "targets": [
+            "proxy_targets": [
                 {
                     "proxy": "http://proxy.example.com:8080",
                     "push_url": "https://kuma.example.com/push/abc123",
                 }
             ],
-            "health_check": {
+            "health_check_server": {
                 "enabled": True,
                 "ssl_enabled": True,
                 "ssl_certfile": "/nonexistent/cert.pem",
@@ -337,13 +337,13 @@ class TestConfigIntegration:
         config_json = {
             "default_test_url": "http://example.com",
             "expected_status": 200,
-            "targets": [
+            "proxy_targets": [
                 {
                     "proxy": "http://proxy.example.com:8080",
                     "push_url": "https://kuma.example.com/push/abc123",
                 }
             ],
-            "health_check": {
+            "health_check_server": {
                 "enabled": True,
                 "ssl_enabled": False,
                 "ssl_certfile": "/nonexistent/cert.pem",
@@ -351,7 +351,7 @@ class TestConfigIntegration:
             },
         }
         cfg = AppConfig.model_validate(config_json)
-        assert cfg.health_check.ssl_enabled is False
+        assert cfg.health_check_server.ssl_enabled is False
 
 
 class TestMalformedRequests:
@@ -454,17 +454,17 @@ class TestAppIntegration:
 
     @pytest.mark.asyncio
     async def test_health_server_starts_with_app(self):
-        """Test health server starts when app runs with health_check.enabled."""
+        """Test health server starts when app runs with health_check_server.enabled."""
         config = AppConfig(
             default_test_url="http://example.com",
             expected_status=200,
-            targets=[
+            proxy_targets=[
                 ProxyTarget(
                     proxy="http://proxy.example.com:8080",
                     push_url="https://kuma.example.com/push/abc123",
                 )
             ],
-            health_check=HealthCheckConfig(
+            health_check_server=HealthCheckConfig(
                 enabled=True,
                 host="127.0.0.1",
                 port=18091,
@@ -482,7 +482,7 @@ class TestAppIntegration:
 
         try:
             async with ClientSession() as session:
-                async with session.get(f"http://127.0.0.1:{config.health_check.port}/health") as resp:
+                async with session.get(f"http://127.0.0.1:{config.health_check_server.port}/health") as resp:
                     assert resp.status == 200
                     data = await resp.json()
                     assert data["status"] == "ok"
@@ -497,13 +497,13 @@ class TestAppIntegration:
         config = AppConfig(
             default_test_url="http://example.com",
             expected_status=200,
-            targets=[
+            proxy_targets=[
                 ProxyTarget(
                     proxy="http://proxy.example.com:8080",
                     push_url="https://kuma.example.com/push/abc123",
                 )
             ],
-            health_check=HealthCheckConfig(enabled=False),
+            health_check_server=HealthCheckConfig(enabled=False),
         )
         app = ProxyMonitorApp(config)
 

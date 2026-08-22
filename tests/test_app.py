@@ -15,7 +15,7 @@ def config():
         timeout_seconds=1.0,
         retry_delay_seconds=0.01,
         interval_minutes=0,
-        targets=[
+        proxy_targets=[
             ProxyTarget(proxy="http://p1:8080", push_url="http://kuma/1", remark="one"),
             ProxyTarget(proxy="http://p2:8080", push_url="http://kuma/2"),
         ],
@@ -80,7 +80,7 @@ async def test_per_target_test_url_passed(mock_tester, mock_notifier):
         timeout_seconds=1.0,
         retry_delay_seconds=0.01,
         interval_minutes=0,
-        targets=[
+        proxy_targets=[
             ProxyTarget(proxy="http://p1:8080", push_url="http://kuma/1"),
             ProxyTarget(
                 proxy="http://p2:8080",

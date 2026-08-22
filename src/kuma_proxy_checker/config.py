@@ -56,13 +56,13 @@ class AppConfig(BaseModel):
     retry_delay_seconds: float = Field(ge=0, default=1.0)
     interval_minutes: int = Field(ge=0, default=5)
     notifier_timeout_seconds: float = Field(gt=0, default=10.0)
-    targets: list[ProxyTarget] = Field(default_factory=list)
-    health_check: HealthCheckConfig = Field(default_factory=HealthCheckConfig)
+    proxy_targets: list[ProxyTarget] = Field(default_factory=list)
+    health_check_server: HealthCheckConfig = Field(default_factory=HealthCheckConfig)
 
     @model_validator(mode="after")
-    def validate_targets_require_defaults(self):
-        if self.targets and self.default_test_url is None:
-            raise ValueError("default_test_url is required when targets are provided")
+    def validate_proxy_targets_require_defaults(self):
+        if self.proxy_targets and self.default_test_url is None:
+            raise ValueError("default_test_url is required when proxy_targets are provided")
         return self
 
     @classmethod

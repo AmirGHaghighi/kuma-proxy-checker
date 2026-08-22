@@ -16,7 +16,7 @@ push URLs.
 - Pushes `up`/`down` status to Uptime Kuma push endpoints (compatible with the `push` type monitor)
 - Runs continuously on an interval, or as a single check cycle with `--once`
 - Supports `http`, `https`, `socks4`, `socks5`, and `socks5h` proxies
-- Async (`asyncio` + `httpx`): all targets are checked concurrently
+- Async (`asyncio` + `httpx`): all proxy targets are checked concurrently
 - Clean exits on `SIGINT`/`SIGTERM`
 - Ships as a single self-contained executable via Nuitka builds
 
@@ -62,7 +62,7 @@ docker run -d --name kuma-proxy-checker \
   default `-c` path); `config.example.json` is available inside the image at
   `/app/config.example.json`.
 - The container runs as an unprivileged user. The optional health server
-  (see `health_check` in the config) listens on port `8080` when enabled; use it for
+   (see `health_check_server` in the config) listens on port `8080` when enabled; use it for
   Docker/orchestrator liveness probes (there is no baked-in `HEALTHCHECK`).
 
 Or with Docker Compose (a ready-made `compose.yaml` is in the repo):
@@ -131,7 +131,7 @@ All fields except `remark` are required unless a default is noted.
 | `timeout_seconds`       | float  | `10.0`  | Per-request timeout                              |
 | `retry_delay_seconds`   | float  | `1.0`   | Sleep between retry attempts (>=0)                   |
 | `interval_minutes`      | int    | `5`     | Minutes between cycles (`0` disables looping)      |
-| `targets`               | array  | —       | At least one target object (see below)               |
+| `proxy_targets`         | array  | —       | List of proxy target objects (see below)              |
 
 Each target:
 
@@ -153,7 +153,7 @@ Unsupported schemes fail config validation at startup.
   "timeout_seconds": 10.0,
   "retry_delay_seconds": 2.0,
   "interval_minutes": 5,
-  "targets": [
+  "proxy_targets": [
     {
       "proxy": "socks5://192.168.10.1:10808",
       "push_url": "https://kuma.example.com/api/push/abc123",
@@ -166,7 +166,7 @@ Unsupported schemes fail config validation at startup.
 ## How it works
 
 1. Config is loaded and validated with Pydantic (schemes, ranges, target count).
-2. Every cycle, all targets are checked concurrently with `asyncio.gather`.
+2. Every cycle, all proxy targets are checked concurrently with `asyncio.gather`.
 3. For each target, the proxy is tested against its `test_url` (falling back to
    `default_test_url` when not set); a mismatch with
    `expected_status` or any connection error counts as a failure and is retried

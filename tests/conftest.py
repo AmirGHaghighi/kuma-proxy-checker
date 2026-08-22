@@ -12,7 +12,7 @@ def sample_config() -> AppConfig:
         timeout_seconds=5.0,
         retry_delay_seconds=0.1,
         interval_minutes=0,
-        targets=[
+        proxy_targets=[
             ProxyTarget(proxy="http://proxy1:8080", push_url="http://kuma/push1"),
             ProxyTarget(
                 proxy="socks5://user:pass@proxy2:1080", push_url="http://kuma/push2", remark="home"

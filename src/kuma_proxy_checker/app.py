@@ -63,12 +63,12 @@ class ProxyMonitorApp:
         await self.notifier.send(str(target.push_url), status, final_message, ping if ok else None)
 
     async def run_cycle(self) -> None:
-        await asyncio.gather(*(self.check_target(t) for t in self.cfg.targets))
+        await asyncio.gather(*(self.check_target(t) for t in self.cfg.proxy_targets))
 
     async def run(self, run_once: bool = False) -> None:
-        if self.cfg.health_check.enabled:
+        if self.cfg.health_check_server.enabled:
             self._health_task = asyncio.create_task(
-                run_health_server(self.cfg.health_check, self._shutdown)
+                run_health_server(self.cfg.health_check_server, self._shutdown)
             )
         try:
             while not self._shutdown.is_set():
