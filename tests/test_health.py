@@ -1,4 +1,5 @@
 import asyncio
+from importlib.metadata import version
 
 import aiohttp
 import pytest
@@ -11,6 +12,8 @@ from kuma_proxy_checker.health import (
     run_health_server,
 )
 from kuma_proxy_checker.validators import validate_template_vars
+
+APP_VERSION = version("kuma-proxy-checker")
 
 
 class TestTemplateValidation:
@@ -40,11 +43,11 @@ class TestTemplateRendering:
     def test_renders_simple_template(self):
         result = render_template({"status": "ok", "version": "{version}"})
         assert result["status"] == "ok"
-        assert result["version"] == "0.1.0"
+        assert result["version"] == APP_VERSION
 
     def test_renders_nested_template(self):
         result = render_template({"checks": [{"name": "db", "status": "{version}"}]})
-        assert result["checks"][0]["status"] == "0.1.0"
+        assert result["checks"][0]["status"] == APP_VERSION
 
     def test_renders_all_built_in_variables(self):
         result = render_template(
@@ -61,7 +64,7 @@ class TestTemplateRendering:
         assert float(result["uptime"]) >= 0
         assert "T" in result["ts"]
         assert result["ts"].endswith("Z")
-        assert result["ver"] == "0.1.0"
+        assert result["ver"] == APP_VERSION
         assert isinstance(result["host"], str)
         assert result["pid"].isdigit()
 
@@ -538,13 +541,13 @@ class TestEdgeCases:
             }
         }
         result = render_template(data)
-        assert result["level1"]["level2"]["level3"][0] == "0.1.0"
+        assert result["level1"]["level2"]["level3"][0] == APP_VERSION
         assert isinstance(result["level1"]["level2"]["level3"][1]["deep"], str)
 
     def test_template_in_list_items(self):
         """Test templates inside list elements."""
         result = render_template(["{version}", "{pid}", "static"])
-        assert result[0] == "0.1.0"
+        assert result[0] == APP_VERSION
         assert result[1].isdigit()
         assert result[2] == "static"
 
