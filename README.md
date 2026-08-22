@@ -10,7 +10,7 @@ push URLs.
 
 ## Features
 
-- Tests each proxy by making an HTTP request through it against a configurable `test_url`
+- Tests each proxy by making an HTTP request through it against a configurable `default_test_url` (overridable per target)
 - Validates the response against an expected HTTP status code
 - Configurable per-attempt timeout, retry count, and retry backoff delay
 - Pushes `up`/`down` status to Uptime Kuma push endpoints (compatible with the `push` type monitor)
@@ -92,7 +92,7 @@ binds directly on the host interface/port from your config.
 cp config.example.json config.json
 ```
 
-2. Point the `test_url` at a reliable endpoint that returns a predictable status code
+2. Point `default_test_url` at a reliable endpoint that returns a predictable status code
    (e.g. `https://www.gstatic.com/generate_204` returning `204`).
 
 3. For each target, set the proxy URL and the Uptime Kuma push URL
@@ -125,7 +125,7 @@ All fields except `remark` are required unless a default is noted.
 
 | Field                   | Type   | Default | Description                                          |
 | ----------------------- | ------ | ------- | ---------------------------------------------------- |
-| `test_url`              | string | —       | URL requested through each proxy                     |
+| `default_test_url`     | string | —       | Default URL requested through each proxy (used when target has no `test_url`) |
 | `expected_status`       | int    | —       | HTTP status code that counts as healthy (100-599)    |
 | `retries`               | int    | `3`     | Attempts per proxy before reporting failure (>=1)    |
 | `timeout_seconds`       | float  | `10.0`  | Per-request timeout                              |
@@ -140,13 +140,14 @@ Each target:
 | `proxy`    | string  | Proxy URL, e.g. `socks5://user:pass@host:1080`    |
 | `push_url` | string  | Uptime Kuma push URL to report status to           |
 | `remark`   | string  | Optional human-readable identifier for logs/msgs   |
+| `test_url` | string  | Optional per-target override for `default_test_url` |
 
 Allowed proxy schemes: `http`, `https`, `socks4`, `socks5`, `socks5h`.
 Unsupported schemes fail config validation at startup.
 
 ```json
 {
-  "test_url": "https://www.gstatic.com/generate_204",
+  "default_test_url": "https://www.gstatic.com/generate_204",
   "expected_status": 204,
   "retries": 3,
   "timeout_seconds": 10.0,
@@ -166,7 +167,8 @@ Unsupported schemes fail config validation at startup.
 
 1. Config is loaded and validated with Pydantic (schemes, ranges, target count).
 2. Every cycle, all targets are checked concurrently with `asyncio.gather`.
-3. For each target, the proxy is tested against `test_url`; a mismatch with
+3. For each target, the proxy is tested against its `test_url` (falling back to
+   `default_test_url` when not set); a mismatch with
    `expected_status` or any connection error counts as a failure and is retried
    up to `retries` times with `retry_delay_seconds` between attempts.
 4. The result is pushed to the target's `push_url` via a GET with query params:

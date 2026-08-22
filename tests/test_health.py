@@ -245,7 +245,7 @@ class TestHealthServer:
 class TestConfigIntegration:
     def test_health_check_config_in_app_config(self):
         config_json = {
-            "test_url": "http://example.com",
+            "default_test_url": "http://example.com",
             "expected_status": 200,
             "targets": [
                 {
@@ -270,7 +270,7 @@ class TestConfigIntegration:
 
     def test_invalid_template_in_config_rejected(self):
         config_json = {
-            "test_url": "http://example.com",
+            "default_test_url": "http://example.com",
             "expected_status": 200,
             "targets": [
                 {
@@ -292,7 +292,7 @@ class TestConfigIntegration:
         key_file.write_text("key")
 
         config_json = {
-            "test_url": "http://example.com",
+            "default_test_url": "http://example.com",
             "expected_status": 200,
             "targets": [
                 {
@@ -312,7 +312,7 @@ class TestConfigIntegration:
 
     def test_missing_ssl_file_rejected(self):
         config_json = {
-            "test_url": "http://example.com",
+            "default_test_url": "http://example.com",
             "expected_status": 200,
             "targets": [
                 {
@@ -332,7 +332,7 @@ class TestConfigIntegration:
 
     def test_ssl_disabled_allows_missing_files(self):
         config_json = {
-            "test_url": "http://example.com",
+            "default_test_url": "http://example.com",
             "expected_status": 200,
             "targets": [
                 {
@@ -453,7 +453,7 @@ class TestAppIntegration:
     async def test_health_server_starts_with_app(self):
         """Test health server starts when app runs with health_check.enabled."""
         config = AppConfig(
-            test_url="http://example.com",
+            default_test_url="http://example.com",
             expected_status=200,
             targets=[
                 ProxyTarget(
@@ -492,7 +492,7 @@ class TestAppIntegration:
     async def test_health_server_not_started_when_disabled(self):
         """Test health server doesn't start when disabled."""
         config = AppConfig(
-            test_url="http://example.com",
+            default_test_url="http://example.com",
             expected_status=200,
             targets=[
                 ProxyTarget(

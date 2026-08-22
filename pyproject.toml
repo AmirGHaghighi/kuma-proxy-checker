@@ -1,6 +1,6 @@
 [project]
 name = "kuma-proxy-checker"
-version = "0.1.0"
+version = "0.2.0"
 description = "Proxy health checker with per-proxy Uptime Kuma push reporting"
 readme = "README.md"
 requires-python = ">=3.11"

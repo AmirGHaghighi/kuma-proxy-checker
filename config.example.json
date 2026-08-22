@@ -1,5 +1,5 @@
 {
-  "test_url": "http://httpbin.org/get",
+  "default_test_url": "http://httpbin.org/get",
   "expected_status": 200,
   "retries": 3,
   "timeout_seconds": 10.0,
@@ -15,7 +15,8 @@
     {
       "proxy": "socks5://proxy2.example.com:1080",
       "push_url": "https://kuma.example.com/api/push/def456",
-      "remark": "home-vpn"
+      "remark": "home-vpn",
+      "test_url": "https://www.gstatic.com/generate_204"
     }
   ],
   "health_check": {

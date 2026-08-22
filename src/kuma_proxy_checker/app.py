@@ -25,7 +25,7 @@ class ProxyMonitorApp:
         self.notifier = notifier or UptimeKumaNotifier(timeout=cfg.notifier_timeout_seconds)
         self.tester = tester or ProxyTester(
             TesterConfig(
-                test_url=str(cfg.test_url),
+                test_url=str(cfg.default_test_url),
                 expected_status=cfg.expected_status,
                 timeout_seconds=cfg.timeout_seconds,
                 retries=cfg.retries,
@@ -46,7 +46,10 @@ class ProxyMonitorApp:
 
     async def check_target(self, target: ProxyTarget) -> None:
         identifier = get_identifier(target)
-        ok, ping, message = await self.tester.test_with_retries(str(target.proxy), identifier)
+        effective_test_url = str(target.test_url or self.cfg.default_test_url)
+        ok, ping, message = await self.tester.test_with_retries(
+            str(target.proxy), identifier, test_url=effective_test_url
+        )
 
         if ok:
             final_message = StatusFormatter.ok(identifier, ping)

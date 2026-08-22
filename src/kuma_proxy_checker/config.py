@@ -10,6 +10,7 @@ class ProxyTarget(BaseModel):
     proxy: AnyUrl
     push_url: AnyUrl
     remark: str | None = None
+    test_url: AnyUrl | None = None
 
     @field_validator("proxy")
     @classmethod
@@ -48,7 +49,7 @@ class HealthCheckConfig(BaseModel):
 
 
 class AppConfig(BaseModel):
-    test_url: AnyUrl
+    default_test_url: AnyUrl
     expected_status: int = Field(ge=100, le=599)
     retries: int = Field(ge=1, default=3)
     timeout_seconds: float = Field(gt=0, default=10.0)

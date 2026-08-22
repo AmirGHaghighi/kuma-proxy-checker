@@ -6,7 +6,7 @@ from kuma_proxy_checker.config import AppConfig, ProxyTarget
 @pytest.fixture
 def sample_config() -> AppConfig:
     return AppConfig(
-        test_url="http://example.com",
+        default_test_url="http://example.com",
         expected_status=200,
         retries=2,
         timeout_seconds=5.0,
