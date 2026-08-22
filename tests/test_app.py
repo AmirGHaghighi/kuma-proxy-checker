@@ -63,6 +63,15 @@ async def test_interval_zero_exits(config, mock_tester, mock_notifier):
 
 
 @pytest.mark.asyncio
+async def test_run_cycle_with_no_targets(mock_tester, mock_notifier):
+    cfg = AppConfig()
+    app = ProxyMonitorApp(cfg, notifier=mock_notifier, tester=mock_tester)
+    await app.run_cycle()
+    mock_tester.test_with_retries.assert_not_called()
+    mock_notifier.send.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_per_target_test_url_passed(mock_tester, mock_notifier):
     cfg = AppConfig(
         default_test_url="http://default.example.com",

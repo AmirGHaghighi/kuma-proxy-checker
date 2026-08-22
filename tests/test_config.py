@@ -13,18 +13,18 @@ def test_invalid_proxy_scheme_rejected():
         ProxyTarget(proxy="ftp://invalid.com", push_url="http://kuma/push")
 
 
-def test_empty_targets_rejected():
-    with pytest.raises(Exception):
+def test_empty_targets_accepted():
+    cfg = AppConfig()
+    assert cfg.targets == []
+    assert cfg.expected_status == 200
+
+
+def test_missing_default_test_url_with_targets_rejected():
+    with pytest.raises(Exception, match="default_test_url is required"):
         AppConfig(
-            default_test_url="http://example.com",
             expected_status=200,
-            targets=[],
+            targets=[ProxyTarget(proxy="http://proxy:8080", push_url="http://kuma/push")],
         )
-
-
-def test_missing_required_field_rejected():
-    with pytest.raises(Exception):
-        AppConfig(default_test_url="http://example.com")
 
 
 def test_target_with_custom_test_url():

@@ -1,5 +1,5 @@
 
-from pydantic import AnyUrl, BaseModel, Field, field_validator
+from pydantic import AnyUrl, BaseModel, Field, field_validator, model_validator
 from pydantic_core import PydanticCustomError
 
 from .models import ProxyScheme
@@ -49,15 +49,21 @@ class HealthCheckConfig(BaseModel):
 
 
 class AppConfig(BaseModel):
-    default_test_url: AnyUrl
-    expected_status: int = Field(ge=100, le=599)
+    default_test_url: AnyUrl | None = None
+    expected_status: int = Field(ge=100, le=599, default=200)
     retries: int = Field(ge=1, default=3)
     timeout_seconds: float = Field(gt=0, default=10.0)
     retry_delay_seconds: float = Field(ge=0, default=1.0)
     interval_minutes: int = Field(ge=0, default=5)
     notifier_timeout_seconds: float = Field(gt=0, default=10.0)
-    targets: list[ProxyTarget] = Field(min_length=1)
+    targets: list[ProxyTarget] = Field(default_factory=list)
     health_check: HealthCheckConfig = Field(default_factory=HealthCheckConfig)
+
+    @model_validator(mode="after")
+    def validate_targets_require_defaults(self):
+        if self.targets and self.default_test_url is None:
+            raise ValueError("default_test_url is required when targets are provided")
+        return self
 
     @classmethod
     def from_file(cls, path: str) -> "AppConfig":
