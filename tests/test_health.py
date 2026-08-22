@@ -118,7 +118,7 @@ class TestHealthServer:
                     assert resp.status == 200
                     data = await resp.json()
                     assert data["status"] == "ok"
-                    assert data["version"] == "0.1.0"
+                    assert data["version"] == APP_VERSION
         finally:
             shutdown.set()
             await task
